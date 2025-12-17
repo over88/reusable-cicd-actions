@@ -1,0 +1,20 @@
+name: 'Check Linear History'
+description: 'Verifies that the PR maintains linear history'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Check for merge commits
+      shell: bash
+      run: |
+        # Check if there are any merge commits in the PR
+        MERGE_COMMITS=$(git log --oneline --merges origin/main.. HEAD)
+        
+        if [ -n "$MERGE_COMMITS" ]; then
+          echo ":: error:: Merge commits detected.  Please rebase your branch to maintain linear history."
+          echo "Merge commits found:"
+          echo "$MERGE_COMMITS"
+          exit 1
+        fi
+        
+        echo "[INFO!] Linear history verified"

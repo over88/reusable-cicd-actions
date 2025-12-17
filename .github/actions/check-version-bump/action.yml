@@ -1,0 +1,44 @@
+name: 'Check Version Bump'
+description: 'Verifies that package. json version has been bumped'
+
+inputs:
+  base-ref:
+    description: 'Base reference to compare against'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Get current version
+      id: current-version
+      shell:  bash
+      run: |
+        CURRENT=$(node -p "require('./package.json').version")
+        echo "version=$CURRENT" >> $GITHUB_OUTPUT
+
+    - name: Get base version
+      id: base-version
+      shell: bash
+      run: |
+        git show ${{ inputs.base-ref }}:package.json > /tmp/base-package.json
+        BASE=$(node -p "require('/tmp/base-package.json').version")
+        echo "version=$BASE" >> $GITHUB_OUTPUT
+
+    - name: Compare versions
+      shell: bash
+      run: |
+        CURRENT="${{ steps.current-version.outputs.version }}"
+        BASE="${{ steps.base-version.outputs.version }}"
+        
+        if [ "$CURRENT" = "$BASE" ]; then
+          echo ":: error::Version has not been bumped. Current: $CURRENT, Base: $BASE"
+          exit 1
+        fi
+        
+        # Simple version comparison (works for semver)
+        if [ "$(printf '%s\n' "$BASE" "$CURRENT" | sort -V | tail -n1)" = "$BASE" ]; then
+          echo ":: error::New version ($CURRENT) is not greater than base version ($BASE)"
+          exit 1
+        fi
+        
+        echo "[INFO!] Version bumped from $BASE to $CURRENT"

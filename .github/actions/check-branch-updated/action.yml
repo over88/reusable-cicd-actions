@@ -1,0 +1,27 @@
+name: 'Check Branch Updated'
+description: 'Verifies that the branch is up-to-date with the base branch'
+
+inputs:
+  base-branch:
+    description: 'Base branch to compare against'
+    required: true
+    default: 'main'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Check if branch is up-to-date
+      shell: bash
+      run:  |
+        git fetch origin ${{ inputs.base-branch }}
+        
+        # Get the merge base
+        MERGE_BASE=$(git merge-base HEAD origin/${{ inputs.base-branch }})
+        BASE_HEAD=$(git rev-parse origin/${{ inputs.base-branch }})
+        
+        if [ "$MERGE_BASE" != "$BASE_HEAD" ]; then
+          echo "::error::Branch is not up-to-date with ${{ inputs.base-branch }}. Please rebase or merge the latest changes."
+          exit 1
+        fi
+        
+        echo "[INFO!] Branch is up-to-date with ${{ inputs.base-branch }}"

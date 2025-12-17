@@ -1,0 +1,44 @@
+name: 'Generate Changelog'
+description: 'Generates a changelog for the release'
+
+inputs:
+  version:
+    description: 'Version being released'
+    required: true
+
+outputs:
+  changelog:
+    description: 'Generated changelog'
+    value: ${{ steps.generate. outputs.changelog }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name:  Generate changelog
+      id: generate
+      shell: bash
+      run:  |
+        # Get the previous tag
+        PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+        
+        if [ -z "$PREV_TAG" ]; then
+          RANGE="HEAD"
+        else
+          RANGE="$PREV_TAG..HEAD"
+        fi
+        
+        # Generate changelog
+        CHANGELOG="## What's Changed\n\n"
+        CHANGELOG+="$(git log $RANGE --pretty=format:'- %s (%h)' --no-merges)\n\n"
+        CHANGELOG+="**Full Changelog**:  "
+        
+        if [ -z "$PREV_TAG" ]; then
+          CHANGELOG+="Initial release"
+        else
+          CHANGELOG+="[\`$PREV_TAG...v${{ inputs.version }}\`](../../compare/$PREV_TAG...v${{ inputs.version }})"
+        fi
+        
+        # Output changelog (escape newlines for GitHub Actions)
+        echo "changelog<<EOF" >> $GITHUB_OUTPUT
+        echo -e "$CHANGELOG" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
