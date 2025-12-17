@@ -1,7 +1,7 @@
 name: 'Check Linear History'
 description: 'Verifies that the PR maintains linear history'
 
-uns:
+runs:
   using: 'composite'
   steps:
     - name: Check for merge commits
