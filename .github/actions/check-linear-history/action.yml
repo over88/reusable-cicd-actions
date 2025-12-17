@@ -4,27 +4,22 @@ description: 'Verifies that the PR maintains linear history'
 runs:
   using: 'composite'
   steps:
-    - name: Check for merge commits
+    - name: Ensure branch contains latest main commit
       shell: bash
       run: |
         set -euo pipefail
 
-        # ensure remote-tracking branch is up to date
         git fetch origin main
 
-        # if the checkout is shallow, unshallow so history/merges are visible
         if [ "$(git rev-parse --is-shallow-repository 2>/dev/null || true)" = "true" ]; then
           git fetch --unshallow || true
         fi
 
-        # correct range syntax (no space): origin/main..HEAD
-        MERGE_COMMITS=$(git log --oneline --merges origin/main..HEAD || true)
+        LATEST_MAIN=$(git rev-parse origin/main)
 
-        if [ -n "$MERGE_COMMITS" ]; then
-          echo "::error:: Merge commits detected. Please rebase your branch to maintain linear history."
-          echo "Merge commits found:"
-          echo "$MERGE_COMMITS"
+        if ! git merge-base --is-ancestor "$LATEST_MAIN" HEAD; then
+          echo "::error:: Branch is missing the latest main commit ($LATEST_MAIN). Rebase or merge main."
           exit 1
         fi
 
-        echo "[INFO!] Linear history verified"
+        echo "[INFO] Branch already contains the latest main commit ($LATEST_MAIN)."
