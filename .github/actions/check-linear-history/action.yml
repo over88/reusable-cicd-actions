@@ -1,20 +1,30 @@
 name: 'Check Linear History'
 description: 'Verifies that the PR maintains linear history'
 
-runs:
+uns:
   using: 'composite'
   steps:
     - name: Check for merge commits
       shell: bash
       run: |
-        # Check if there are any merge commits in the PR
-        MERGE_COMMITS=$(git log --oneline --merges origin/main.. HEAD)
-        
+        set -euo pipefail
+
+        # ensure remote-tracking branch is up to date
+        git fetch origin main
+
+        # if the checkout is shallow, unshallow so history/merges are visible
+        if [ "$(git rev-parse --is-shallow-repository 2>/dev/null || true)" = "true" ]; then
+          git fetch --unshallow || true
+        fi
+
+        # correct range syntax (no space): origin/main..HEAD
+        MERGE_COMMITS=$(git log --oneline --merges origin/main..HEAD || true)
+
         if [ -n "$MERGE_COMMITS" ]; then
-          echo ":: error:: Merge commits detected.  Please rebase your branch to maintain linear history."
+          echo "::error:: Merge commits detected. Please rebase your branch to maintain linear history."
           echo "Merge commits found:"
           echo "$MERGE_COMMITS"
           exit 1
         fi
-        
+
         echo "[INFO!] Linear history verified"
