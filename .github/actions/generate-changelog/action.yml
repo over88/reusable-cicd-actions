@@ -9,36 +9,41 @@ inputs:
 outputs:
   changelog:
     description: 'Generated changelog'
-    value: ${{ steps.generate. outputs.changelog }}
+    value: ${{ steps.generate.outputs.changelog }}
 
 runs:
   using: 'composite'
   steps:
-    - name:  Generate changelog
+    - name: Generate changelog
       id: generate
       shell: bash
-      run:  |
-        # Get the previous tag
-        PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-        
-        if [ -z "$PREV_TAG" ]; then
-          RANGE="HEAD"
+      run: |
+        CURRENT_TAG="v${{ inputs.version }}"
+        RANGE_TARGET="HEAD"
+
+        if git rev-parse "$CURRENT_TAG" >/dev/null 2>&1; then
+          RANGE_TARGET="$CURRENT_TAG"
+          PREV_TAG=$(git tag --sort=-creatordate | grep -E '^v' | grep -v "^$CURRENT_TAG$" | head -n 1)
         else
-          RANGE="$PREV_TAG..HEAD"
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
         fi
-        
-        # Generate changelog
+
+        if [ -z "$PREV_TAG" ]; then
+          RANGE="$RANGE_TARGET"
+        else
+          RANGE="$PREV_TAG..$RANGE_TARGET"
+        fi
+
         CHANGELOG="## What's Changed\n\n"
         CHANGELOG+="$(git log $RANGE --pretty=format:'- %s (%h)' --no-merges)\n\n"
         CHANGELOG+="**Full Changelog**:  "
-        
+
         if [ -z "$PREV_TAG" ]; then
           CHANGELOG+="Initial release"
         else
-          CHANGELOG+="[\`$PREV_TAG...v${{ inputs.version }}\`](../../compare/$PREV_TAG...v${{ inputs.version }})"
+          CHANGELOG+="[\`$PREV_TAG...$RANGE_TARGET\`](../../compare/$PREV_TAG...$RANGE_TARGET)"
         fi
-        
-        # Output changelog (escape newlines for GitHub Actions)
-        echo "changelog<<EOF" >> $GITHUB_OUTPUT
-        echo -e "$CHANGELOG" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
+
+        echo "changelog<<EOF" >> "$GITHUB_OUTPUT"
+        echo -e "$CHANGELOG" >> "$GITHUB_OUTPUT"
+        echo "EOF" >> "$GITHUB_OUTPUT"
